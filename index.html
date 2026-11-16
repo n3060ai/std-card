@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>学生証メーカー</title>
+<style>
+:root{--bg:#f6f4f7;--fg:#222;--card:#fff;--bd:#d8d3dc;--ac:#c2566e;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1c1a1f;--fg:#eee;--card:#2a272e;--bd:#47424d;--ac:#e07a92}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:"Hiragino Sans","Yu Gothic",sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px;display:grid;gap:16px;grid-template-columns:1fr}
+@media(min-width:860px){main{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)}}
+h1{font-size:20px;margin:0 0 4px}
+.panel{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px}
+canvas{width:100%;height:auto;border-radius:12px;touch-action:none;cursor:grab;display:block;border:1px solid var(--bd)}
+label{display:block;font-size:12px;margin:8px 0 2px;opacity:.8}
+input[type=text],input[type=file],select{width:100%;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
+input[type=range]{width:100%}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+button{margin-top:10px;padding:10px 14px;border:0;border-radius:8px;background:var(--ac);color:#fff;font:inherit;font-weight:600;cursor:pointer;width:100%}
+.hint{font-size:12px;opacity:.75;margin:6px 0 0}
+#out img{width:100%;border-radius:10px;margin-top:10px}
+.pv{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-bottom:6px;align-self:start}
+.panel{align-self:start}
+.tabs{display:flex;gap:6px;margin-bottom:6px}
+.tab,.sub{margin:0;background:transparent;color:var(--fg);border:1px solid var(--bd)}
+.tab{flex:1;padding:8px}.tab.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.sub{padding:8px}
+.tp{display:none}.tp.on{display:block}
+@media(max-width:859px){h1{font-size:16px}.pv .hint{display:none}}
+</style>
+</head>
+<body>
+<main>
+<section class="pv">
+  <h1>学生証メーカー</h1>
+  <canvas id="cv" width="1012" height="638"></canvas>
+  <p class="hint">写真の上をドラッグで位置調整、ホイールまたはスライダーで拡大縮小できます。</p>
+</section>
+<section class="panel">
+<div class="tabs"><button type="button" class="tab on" data-t="t1">基本</button><button type="button" class="tab" data-t="t2">デザイン</button><button type="button" class="tab" data-t="t3">校章・印</button></div>
+<div class="tp on" id="t1">
+  <label>顔写真</label><input type="file" id="file" accept="image/*">
+  <label>写真の拡大率(プレビュー上のドラッグ・ホイールでも調整)</label><input type="range" id="zoom" min="0.5" max="4" step="0.01" value="1">
+  <label>学校名</label><input type="text" id="school" value="私立星ヶ丘学園高等学校">
+  <div class="row"><div><label>氏名</label><input type="text" id="name" value="桜庭 ひなた"></div><div><label>ふりがな / ローマ字</label><input type="text" id="kana" value="さくらば ひなた"></div></div>
+  <div class="row"><div><label>学年・クラス</label><input type="text" id="grade" value="2年A組"></div><div><label>生年月日</label><input type="text" id="birth" value="7月22日"></div></div>
+  <div class="row"><div><label>学籍番号</label><input type="text" id="sid" value=""></div><div><label>発行日</label><input type="text" id="issue" value=""></div></div>
+  <div class="row" style="margin-top:8px"><select id="idfmt"><option value="a">番号:英字+数字</option><option value="b">番号:年度+連番</option><option value="c">番号:数字のみ</option><option value="d">番号:一部XX</option></select><button id="rand" type="button" class="sub">🎲 生年月日・番号・発行日</button></div>
+  <label>証明文(空欄で非表示)</label><input type="text" id="cert" value="上記の者は本学の学生であることを証明する。">
+  <label>証の名称</label><input type="text" id="title" value="学生証">
+</div>
+<div class="tp" id="t2">
+  <label>文字レイアウト</label>
+  <select id="layout"><option value="left">A:写真左・上帯</option><option value="right">B:写真右・上帯</option><option value="bottom">C:写真左・下帯</option><option value="plain">D:帯なし(線のみ)</option><option value="card">E:学生証風(英字併記・校長印)</option></select>
+  <div class="row" style="grid-template-columns:1fr 1fr 1fr">
+    <div><label>写真サイズ</label><select id="psize"><option value="s" selected>標準</option><option value="m">大きめ</option><option value="l">特大</option></select></div>
+    <div><label>区切り線</label><select id="rule"><option value="none" selected>なし</option><option value="name">氏名の下</option><option value="all">全項目</option><option value="dot">全項目(点線)</option></select></div>
+    <div><label>証明文の配置</label><select id="calign"><option value="left" selected>左寄せ</option><option value="center">中央</option><option value="right">右寄せ</option><option value="fill">幅いっぱい</option></select></div>
+  </div>
+  <label>配色プリセット</label>
+  <select id="theme"><option value="pink">さくら</option><option value="wine">ワイン</option><option value="orange">オレンジ</option><option value="navy">ネイビー</option><option value="sky">スカイ</option></select>
+  <div class="row" style="grid-template-columns:1fr 1fr 1fr">
+    <div><label>帯の色</label><input type="color" id="cHead" style="width:100%;height:36px"></div>
+    <div><label>背景色</label><input type="color" id="cBody" style="width:100%;height:36px"></div>
+    <div><label>アクセント色</label><input type="color" id="cAcc" style="width:100%;height:36px"></div>
+  </div>
+  <label>E用:英字サブタイトル / 透かし文字</label>
+  <div class="row"><input type="text" id="sub" value="Student Card"><input type="text" id="wm" value="HOSHIGAOKA"></div>
+</div>
+<div class="tp" id="t3">
+  <button id="sample" type="button" class="sub">🎲 おまかせで校章と印を入れる</button>
+  <label>校章</label>
+  <div class="row"><select id="crestKind"><option value="none">なし</option><option value="shield">盾</option><option value="ring">二重円</option><option value="flower">花</option><option value="star">星</option><option value="upload">自分の画像</option></select><select id="crestMode"><option value="wm">薄い透かし</option><option value="solid">ふつう</option></select></div>
+  <div class="row"><input type="text" id="crestChar" value="星" placeholder="校章の文字"><input type="file" id="crestFile" accept="image/*"></div>
+  <label>校章の大きさ</label><input type="range" id="crestSize" min="60" max="400" value="200">
+  <label>印(判子)</label>
+  <div class="row"><select id="stampKind"><option value="none">なし</option><option value="square">四角</option><option value="round">丸</option><option value="double">二重丸</option><option value="upload">自分の画像</option></select><input type="text" id="stampText" value="星丘学園" placeholder="印の文字(4字まで)"></div>
+  <input type="file" id="stampFile" accept="image/*" style="margin-top:6px">
+  <label>印の大きさ</label><input type="range" id="stampSize" min="60" max="200" value="110">
+  <p class="hint">校章と印は、プレビュー上でドラッグして動かせます。</p>
+</div>
+<button id="make">PNGを作成</button>
+<div id="out"></div>
+</section>
+</main>
+<script>
+(function(){
+var cv=document.getElementById("cv"),ctx=cv.getContext("2d"),W=cv.width,H=cv.height;
+var themes={
+ pink:{head:"#d9788a",body:"#fbeff1",accent:"#b8566a",text:"#333",ht:"#fff"},
+ wine:{head:"#8e2f45",body:"#ffffff",accent:"#8e2f45",text:"#222",ht:"#fff"},
+ orange:{head:"#f0a02a",body:"#fffaf2",accent:"#e08a10",text:"#333",ht:"#fff"},
+ navy:{head:"#2c3a66",body:"#f4f6fb",accent:"#2c3a66"},
+ sky:{head:"#1b8fd1",body:"#fafdff",accent:"#1b8fd1"}
+};
+var $=function(i){return document.getElementById(i)};
+var img=null,zoom=1,ox=0,oy=0;
+var P={x:50,y:170,w:270,h:340};
+var FONT='"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
+function rr(x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+function hl(yy,i){var m=$("rule").value;if(m==="none"||(m==="name"&&i>0))return;var R=$("layout").value==="right",x0=R?44:P.x+P.w+40,x1=R?P.x-30:W-44;ctx.save();ctx.strokeStyle=getT().accent;ctx.lineWidth=m==="dot"?3:2.5;ctx.lineCap="round";if(m==="dot")ctx.setLineDash([1,9]);ctx.beginPath();ctx.moveTo(x0,yy);ctx.lineTo(x1,yy);ctx.stroke();ctx.restore()}
+function certDraw(yy){var s=$("cert").value,a=$("calign").value;if(!s)return;var mw=W-88,i;if(a==="fill"&&s.length>1){var tw=0;for(i=0;i<s.length;i++)tw+=ctx.measureText(s[i]).width;var g=Math.min(24,Math.max(0,(mw-tw)/(s.length-1))),x=44;ctx.textAlign="left";for(i=0;i<s.length;i++){ctx.fillText(s[i],x,yy);x+=ctx.measureText(s[i]).width+g}}else{ctx.textAlign=a==="right"?"right":a==="center"?"center":"left";ctx.fillText(s,a==="right"?W-44:a==="center"?W/2:44,yy,mw)}}
+function lum(c){var n=parseInt(c.slice(1),16);return(0.299*(n>>16)+0.587*((n>>8)&255)+0.114*(n&255))/255}
+function getT(){var h=$("cHead").value,b=$("cBody").value;return{head:h,body:b,accent:$("cAcc").value,ht:lum(h)>0.65?"#222":"#fff",text:lum(b)<0.4?"#f2f2f2":"#222"}}
+function preset(){var t=themes[$("theme").value];$("cHead").value=t.head;$("cBody").value=t.body;$("cAcc").value=t.accent;draw()}
+function draw(){
+  var t=getT(),L=$("layout").value,top=(L!=="bottom"),hy=top?0:H-120,plain=(L==="plain"),right=(L==="right");
+  if(L==="card"){drawCard(t);return}
+  var sz=$("psize").value,pw={s:270,m:295,l:320}[sz],ph={s:340,m:370,l:400}[sz];
+  P.w=pw;P.h=ph;P.x=right?W-50-pw:50;P.y=top?Math.round(120+(428-ph)/2):Math.round((448-ph)/2);
+  var LX=right?44:P.x+pw+40,VX=LX+140,mw=(right?P.x-30:W-44)-VX;
+  ctx.clearRect(0,0,W,H);
+  ctx.save();rr(0,0,W,H,36);ctx.clip();
+  ctx.fillStyle=t.body;ctx.fillRect(0,0,W,H);
+  if(!plain){ctx.fillStyle=t.head;ctx.fillRect(0,hy,W,120)}
+  else{ctx.fillStyle=t.accent;ctx.fillRect(44,112,W-88,4)}
+  var ly=top?H-90:H-190;
+  ctx.fillStyle=t.accent;ctx.fillRect(0,ly,W,6);ctx.fillRect(0,ly+16,W,3);
+  ctx.fillStyle=plain?t.accent:t.ht;ctx.textBaseline="middle";ctx.font="bold 44px "+FONT;ctx.textAlign="left";
+  ctx.fillText($("school").value,44,hy+62,640);
+  var ti=$("title").value;
+  if(ti){ctx.font="bold 34px "+FONT;ctx.textAlign="right";ctx.fillText(ti,W-44,hy+62,260)}
+  // photo
+  ctx.save();ctx.beginPath();ctx.rect(P.x,P.y,P.w,P.h);ctx.clip();
+  ctx.fillStyle="#d9d9de";ctx.fillRect(P.x,P.y,P.w,P.h);
+  if(img){
+    var s=Math.max(P.w/img.width,P.h/img.height)*zoom,dw=img.width*s,dh=img.height*s;
+    ctx.drawImage(img,P.x+(P.w-dw)/2+ox,P.y+(P.h-dh)/2+oy,dw,dh);
+  }else{ctx.fillStyle="#888";ctx.textAlign="center";ctx.font="26px sans-serif";ctx.fillText("写真を選択",P.x+P.w/2,P.y+P.h/2)}
+  ctx.restore();
+  ctx.strokeStyle=t.accent;ctx.lineWidth=4;ctx.strokeRect(P.x,P.y,P.w,P.h);
+  // fields
+  var rows=[["氏　名",$("name").value,$("kana").value],["学　年",$("grade").value],["生年月日",$("birth").value],["学籍番号",$("sid").value],["発行日",$("issue").value]];
+  var y=P.y-5;
+  ctx.textAlign="left";
+  rows.forEach(function(r,i){
+    if(!r[1])return;
+    ctx.fillStyle=t.accent;ctx.font="bold 22px "+FONT;ctx.fillText(r[0],LX,y+22);
+    ctx.fillStyle=t.text;
+    if(i===0){
+      if(r[2]){ctx.font="20px "+FONT;ctx.fillText(r[2],VX,y+2,mw)}
+      ctx.font="bold 50px "+FONT;ctx.fillText(r[1],VX,y+42,mw);hl(y+84,i);y+=104;
+    }else{ctx.font="30px "+FONT;ctx.fillText(r[1],VX,y+22,mw);hl(y+50,i);y+=64}
+  });
+  ctx.fillStyle=t.text;ctx.font="22px "+FONT;ctx.textAlign="left";
+  certDraw(top?H-40:H-150);
+  decor(t);ctx.restore();
+  ctx.strokeStyle="rgba(0,0,0,.18)";ctx.lineWidth=2;rr(1,1,W-2,H-2,36);ctx.stroke();
+}
+function pos(e){var r=cv.getBoundingClientRect();return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height}}
+function inP(p){return p.x>=P.x&&p.x<=P.x+P.w&&p.y>=P.y&&p.y<=P.y+P.h}
+var drag=null;
+cv.addEventListener("pointerdown",function(e){var p=pos(e),hit=null;if($("stampKind").value!=="none"&&Math.hypot(p.x-ST.x,p.y-ST.y)<ST.s/2)hit=ST;else if($("crestKind").value!=="none"&&Math.hypot(p.x-CR.x,p.y-CR.y)<CR.s/2)hit=CR;if(hit||inP(p)){dragObj=hit;drag=p;cv.setPointerCapture(e.pointerId);cv.style.cursor="grabbing"}});
+cv.addEventListener("pointermove",function(e){if(!drag)return;var p=pos(e);if(dragObj){dragObj.x+=p.x-drag.x;dragObj.y+=p.y-drag.y}else{ox+=p.x-drag.x;oy+=p.y-drag.y}drag=p;draw()});
+cv.addEventListener("pointerup",function(){drag=null;cv.style.cursor="grab"});
+cv.addEventListener("wheel",function(e){if(!inP(pos(e)))return;e.preventDefault();zoom=Math.min(4,Math.max(0.5,zoom*(e.deltaY<0?1.06:0.94)));$("zoom").value=zoom;draw()},{passive:false});
+$("zoom").addEventListener("input",function(){zoom=parseFloat(this.value);draw()});
+$("file").addEventListener("change",function(){
+  var f=this.files[0];if(!f)return;
+  var u=URL.createObjectURL(f),im=new Image();
+  im.onload=function(){img=im;zoom=1;ox=0;oy=0;$("zoom").value=1;draw()};im.src=u;
+});
+["wm","sub","crestKind","crestMode","crestChar","stampKind","stampText","layout","psize","rule","calign","cHead","cBody","cAcc","school","title","name","kana","grade","birth","sid","issue","cert"].forEach(function(i){$(i).addEventListener("input",draw)});
+$("make").addEventListener("click",function(){
+  var url=cv.toDataURL("image/png");
+  var a=document.createElement("a");a.href=url;a.download="student-id.png";
+  try{a.click()}catch(e){}
+  $("out").innerHTML='<img alt="学生証" src="'+url+'"><p class="hint">保存されない場合は、画像を長押し(PC は右クリック)して保存してください。</p>';
+});
+var dragObj=null,CR={x:W-130,y:H/2,s:200},ST={x:W-100,y:H/2+130,s:100},crestImg=null,stampImg=null;
+function fitImg(im,s){var r=Math.min(s/im.width,s/im.height);ctx.drawImage(im,-im.width*r/2,-im.height*r/2,im.width*r,im.height*r)}
+function crest(k,s,c){var R=s/2;ctx.strokeStyle=c;ctx.fillStyle=c;ctx.lineWidth=R*.08;
+ if(k==="shield"){ctx.beginPath();ctx.moveTo(-R*.8,-R*.85);ctx.lineTo(R*.8,-R*.85);ctx.lineTo(R*.8,0);ctx.quadraticCurveTo(R*.8,R*.6,0,R);ctx.quadraticCurveTo(-R*.8,R*.6,-R*.8,0);ctx.closePath();ctx.stroke()}
+ else if(k==="flower"){for(var i=0;i<6;i++){ctx.save();ctx.rotate(i*Math.PI/3);ctx.beginPath();ctx.ellipse(0,-R*.58,R*.22,R*.4,0,0,7);ctx.stroke();ctx.restore()}}
+ else if(k==="star"){ctx.beginPath();ctx.arc(0,0,R,0,7);ctx.stroke();ctx.beginPath();for(var j=0;j<10;j++){var a=-Math.PI/2+j*Math.PI/5,r=j%2?R*.32:R*.72;ctx[j?"lineTo":"moveTo"](Math.cos(a)*r,Math.sin(a)*r)}ctx.closePath();ctx.fill();return}
+ else{ctx.beginPath();ctx.arc(0,0,R,0,7);ctx.stroke();ctx.beginPath();ctx.arc(0,0,R*.82,0,7);ctx.stroke()}
+ ctx.font="bold "+(k==="flower"?R*.5:R*.9)+"px "+FONT;ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText($("crestChar").value,0,R*.05)}
+function stamp(q,s){var R=s/2,ch=Array.from($("stampText").value).slice(0,4),n=ch.length;ctx.save();ctx.translate(ST.x,ST.y);ctx.rotate(-0.1);ctx.globalAlpha=.88;ctx.strokeStyle=ctx.fillStyle="#c8342f";ctx.lineWidth=R*.1;
+ if(q==="upload"){if(stampImg)fitImg(stampImg,s);ctx.restore();return}
+ if(q==="square")ctx.strokeRect(-R,-R,2*R,2*R);else{ctx.beginPath();ctx.arc(0,0,R,0,7);ctx.stroke();if(q==="double"){ctx.lineWidth=R*.04;ctx.beginPath();ctx.arc(0,0,R*.82,0,7);ctx.stroke()}}
+ var pos=n<=2?[[0,-R*.42],[0,R*.42]]:[[R*.38,-R*.38],[R*.38,R*.38],[-R*.38,-R*.38],[-R*.38,R*.38]];
+ ctx.font="bold "+R*(n<=2?.8:.72)+"px "+FONT;ctx.textAlign="center";ctx.textBaseline="middle";
+ ch.forEach(function(c,i){ctx.fillText(c,pos[i][0],pos[i][1])});ctx.restore()}
+function decor(t){var k=$("crestKind").value,q=$("stampKind").value;
+ if(k!=="none"){ctx.save();ctx.globalAlpha=$("crestMode").value==="wm"?0.16:1;ctx.translate(CR.x,CR.y);if(k==="upload"){if(crestImg)fitImg(crestImg,CR.s)}else crest(k,CR.s,t.accent);ctx.restore()}
+ if(q!=="none")stamp(q,ST.s)}
+function drawCard(t){var pw={s:270,m:295,l:320}[$("psize").value],ph={s:340,m:370,l:400}[$("psize").value];P.w=pw;P.h=ph;P.x=56;P.y=150;
+ ctx.clearRect(0,0,W,H);ctx.save();rr(0,0,W,H,36);ctx.clip();ctx.fillStyle=t.body;ctx.fillRect(0,0,W,H);
+ ctx.globalAlpha=.12;ctx.fillStyle=t.accent;ctx.font="bold 230px sans-serif";ctx.textAlign="left";ctx.textBaseline="alphabetic";ctx.fillText($("wm").value,10,H+30);ctx.globalAlpha=1;
+ ctx.textBaseline="middle";ctx.fillStyle=t.accent;ctx.font="bold 46px "+FONT;ctx.fillText($("title").value,52,62);
+ var tw=ctx.measureText($("title").value).width;ctx.font="28px sans-serif";ctx.fillText($("sub").value,52+tw+24,66);
+ ctx.save();ctx.beginPath();ctx.rect(P.x,P.y,pw,ph);ctx.clip();ctx.fillStyle="#d9d9de";ctx.fillRect(P.x,P.y,pw,ph);
+ if(img){var s=Math.max(pw/img.width,ph/img.height)*zoom,dw=img.width*s,dh=img.height*s;ctx.drawImage(img,P.x+(pw-dw)/2+ox,P.y+(ph-dh)/2+oy,dw,dh)}else{ctx.fillStyle="#888";ctx.textAlign="center";ctx.font="26px sans-serif";ctx.fillText("写真を選択",P.x+pw/2,P.y+ph/2)}
+ ctx.restore();
+ var X=P.x+pw+46,fy=P.y+20,mw=W-44-X-130;ctx.fillStyle=t.text;ctx.textAlign="left";
+ if($("grade").value){ctx.font="24px "+FONT;ctx.fillText("学年組",X,fy+20);ctx.font="bold 46px "+FONT;ctx.fillText($("grade").value,X+130,fy+20,mw)}
+ ctx.font="24px "+FONT;ctx.fillText("氏　名",X,fy+112);ctx.font="bold 58px "+FONT;ctx.fillText($("name").value,X+130,fy+112,mw);
+ ctx.font="28px "+FONT;ctx.fillText($("kana").value,X+130,fy+170,mw);
+ var info=[["学籍番号",$("sid").value],["生年月日",$("birth").value],["発行日",$("issue").value]].filter(function(a){return a[1]}).map(function(a){return a[0]+" "+a[1]}).join("　");
+ ctx.font="22px "+FONT;ctx.fillText(info,X,fy+226,W-44-X);
+ ctx.font="24px "+FONT;ctx.fillText($("cert").value,X,440,W-44-X);ctx.fillText($("school").value+"　校長",X,486,mw);
+ ctx.font="bold 52px "+FONT;ctx.fillText($("school").value,X,556,mw);
+ decor(t);ctx.restore();ctx.strokeStyle="rgba(0,0,0,.18)";ctx.lineWidth=2;rr(1,1,W-2,H-2,36);ctx.stroke()}
+function loadTo(id,kid,cb){$(id).addEventListener("change",function(){var f=this.files[0];if(!f)return;var im=new Image();im.onload=function(){cb(im);$(kid).value="upload";draw()};im.src=URL.createObjectURL(f)})}
+loadTo("crestFile","crestKind",function(im){crestImg=im});loadTo("stampFile","stampKind",function(im){stampImg=im});
+$("crestSize").addEventListener("input",function(){CR.s=+this.value;draw()});$("stampSize").addEventListener("input",function(){ST.s=+this.value;draw()});
+$("layout").addEventListener("change",function(){var c=this.value==="card";
+ if(c){CR.x=W-95;CR.y=95;CR.s=120;ST.x=W-100;ST.y=520;ST.s=110;$("crestMode").value="solid";if($("crestKind").value==="none")$("crestKind").value="ring";if($("stampKind").value==="none")$("stampKind").value="square"}
+ else{CR.x=W-130;CR.y=H/2;CR.s=200;ST.x=W-100;ST.y=H/2+130;ST.s=100;$("crestMode").value="wm"}
+ $("crestSize").value=CR.s;$("stampSize").value=ST.s;draw()});
+function ri(a,b){return a+Math.floor(Math.random()*(b-a+1))}
+function pad(n,l){return String(n).padStart(l,"0")}
+$("rand").addEventListener("click",function(){
+  var m=ri(1,12),d=ri(1,[31,29,31,30,31,30,31,31,30,31,30,31][m-1]),yr=ri(24,26),f=$("idfmt").value,L=String.fromCharCode(65+ri(0,25)),s;
+  if(f==="a")s=L+"-"+pad(ri(0,9999),4);
+  else if(f==="b")s=yr+"-"+pad(ri(1,9999),4);
+  else if(f==="c")s="20"+yr+pad(ri(1,9999),4);
+  else s=L+"-"+pad(ri(0,99),2)+"XX";
+  $("birth").value=m+"月"+d+"日";
+  $("sid").value=s;
+  $("issue").value="20"+yr+"年4月"+ri(1,10)+"日";
+  draw();
+});
+document.querySelectorAll(".tab").forEach(function(b){b.addEventListener("click",function(){document.querySelectorAll(".tab,.tp").forEach(function(e){e.classList.remove("on")});b.classList.add("on");$(b.dataset.t).classList.add("on")})});
+$("sample").addEventListener("click",function(){var ks=["shield","ring","flower","star"],ss=["square","round","double"];$("crestKind").value=ks[ri(0,3)];$("stampKind").value=ss[ri(0,2)];draw()});
+$("theme").addEventListener("change",preset);preset();
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(draw);
+})();
+</script>
+</body>
+</html>
